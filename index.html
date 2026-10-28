@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Alan — Snapshot 2026-10-28 15:03 Eastern Daylight Time</title>
+<link rel="icon" href="img/alan.svg" />
+<link rel="stylesheet" href="css/base.css" />
+<link rel="stylesheet" href="css/panels.css" />
+<meta name="robots" content="noindex, nofollow" />
+<link rel="stylesheet" href="css/snapshot-mobile.css" />
+<script>window.__SNAPSHOT__=window.__SNAPSHOT__||{};</script>
+<script src="js/snapshot-data.js"></script>
+<script src="js/snapshot-shim.js"></script>
+</head>
+<body>
+<div id="app">
+
+  <!-- A. TOP — system status -->
+  <header class="top" id="top">
+    <div class="brand">
+      <img class="mark" src="img/alan.svg" alt="Alan" />
+      <span class="wordmark">ALAN</span>
+    </div>
+    <div class="link-state" id="linkState" data-state="connecting">
+      <span class="led"></span><span class="txt">CONNECTING</span>
+    </div>
+    <div class="strip" id="statusStrip">
+      <!-- filled from real /health + /api/stats -->
+    </div>
+    <div class="clock"><span class="mono" id="clock">--:--:--</span></div>
+  </header>
+
+  <!-- B. LEFT — activity and events -->
+  <aside class="left" id="left">
+    <div class="col-head">
+      <span class="label">ACTIVITY</span>
+      <div class="filters" id="streamFilters">
+        <button class="chip on" data-kind="all">ALL</button>
+        <button class="chip" data-kind="tool">TOOLS</button>
+        <button class="chip" data-kind="error">ERRORS</button>
+        <button class="chip" data-kind="cron">CRON</button>
+      </div>
+    </div>
+    <div class="stream" id="stream"></div>
+  </aside>
+
+  <!-- column boundaries, draggable -->
+  <div class="col-resize" id="resizeLeft" role="separator" aria-orientation="vertical"
+       aria-label="Resize activity column" tabindex="0"></div>
+
+  <!-- C. CENTER — the intelligence core -->
+  <main class="center" id="center">
+    <div class="core-head">
+      <span class="label">TOPOLOGY</span>
+      <div class="core-tools">
+        <button class="chip" id="zoomOut" title="Zoom out">&minus;</button>
+        <button class="chip" id="zoomReset" title="Reset view">RESET</button>
+        <button class="chip" id="zoomIn" title="Zoom in">+</button>
+      </div>
+    </div>
+    <div class="stage" id="stage">
+<canvas id="ambient" aria-hidden="true"></canvas>
+      <!-- The mark, worn behind the map. Between the atmosphere and the
+           topology so particles drift over it and nodes read above it. -->
+      <img id="stageMark" class="stage-mark" src="img/alan.svg" alt=""
+           aria-hidden="true" draggable="false" />
+      <svg id="topology" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div class="empty" id="coreEmpty" hidden></div>
+    </div>
+    <div class="inspector" id="inspector" hidden></div>
+  </main>
+
+  <div class="col-resize" id="resizeRight" role="separator" aria-orientation="vertical"
+       aria-label="Resize telemetry column" tabindex="0"></div>
+
+  <!-- D. RIGHT — system intelligence -->
+  <aside class="right" id="right"></aside>
+
+  <!-- row boundary, draggable — grows/shrinks the chat history below it -->
+  <div class="row-resize" id="resizeBottom" role="separator" aria-orientation="horizontal"
+       aria-label="Resize chat history height" tabindex="0"></div>
+
+  <!-- E. BOTTOM — timeline, chat history and command -->
+  <footer class="bottom" id="bottom">
+<div class="timeline" id="timeline"></div>
+    <div class="chatlog" id="chatlog"></div>
+    <div class="attach-strip" id="attachStrip"></div>
+    <div class="composer">
+      <button id="attachBtn" class="icon" type="button" title="Attach a picture">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="2" y="3" width="12" height="10" rx="1.5"/><circle cx="6" cy="6.5" r="1.2"/><path d="M3 12l3.5-3.5L9 11l2-2 2 2.5"/></svg>
+      </button>
+      <button id="micBtn" class="icon" type="button" title="Record a voice note — click to start, click again to send it">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><rect x="6" y="2" width="4" height="7" rx="2"/><path d="M3.5 7.5a4.5 4.5 0 0 0 9 0M8 12v2"/></svg>
+      </button>
+      <button id="voiceBtn" class="icon on" type="button" title="Spoken replies — click to toggle">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 6v4h2.5L8 13V3L4.5 6H2z"/><path d="M10.5 5.5a3 3 0 0 1 0 5M12 4a5.2 5.2 0 0 1 0 8"/></svg>
+      </button>
+      <select id="sessionPick" class="pick" aria-label="Session"></select>
+      <input id="cmdInput" class="cmd" type="text" autocomplete="off"
+             placeholder="Message Alan… (Enter to send)" />
+      <button id="sendBtn" class="send">SEND</button>
+      <span class="send-state mono" id="sendState"></span>
+    </div>
+  </footer>
+
+</div>
+<input type="file" id="file" accept="image/*" hidden />
+<script type="module" src="js/app.js"></script>
+</body>
+</html>

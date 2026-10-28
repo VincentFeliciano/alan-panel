@@ -1,0 +1,268 @@
+/* OpenCrabs intelligence interface — base layer.
+   Palette, typography, and the five-region grid. Component styling lives in
+   panels.css so neither file grows past the point of being readable. */
+
+:root{
+/* The five-colour palette: #000000 ground, #515151 structure, #9DA9B5
+     secondary ink, #F5F5F5 primary ink, #DDFF00 accent. The deep greys below
+     are neutral fractions of #515151, so nothing here invents a hue. Green,
+     amber and red survive for meaning only -- ok, warn, err -- and nothing is
+     coloured for decoration. */
+  --void:#000000;
+  --navy:#0A0A0A;
+  --panel:#101010;
+  --surface:#1A1A1A;
+  --line:#2C2C2C;
+  --line-hot:#515151;
+
+  --accent:#DDFF00;
+  --gold:#E8FF6B;
+  --blue:#9DA9B5;
+  --ice:#F5F5F5;
+  --mint:#3DDC84;
+
+  --ok:#3DDC84;
+  --warn:#FFB020;
+  --err:#FF5D5D;
+  --dim:#515151;
+
+  --ink:#F5F5F5;
+  --ink-2:#9DA9B5;
+
+  --sans:"Segoe UI",Inter,system-ui,-apple-system,sans-serif;
+  --mono:"Cascadia Mono",Consolas,"SF Mono",ui-monospace,monospace;
+
+  --gap:10px;
+  --rail:302px;
+  --tel:330px;
+  /* The bottom third, by default — the chat history that lives in it earns the
+     room. The resize handle below rewrites this in px once dragged. */
+  --bottomH:33vh;
+}
+
+*{box-sizing:border-box}
+html,body{height:100%}
+body{
+  margin:0; background:var(--void); color:var(--ink);
+  font-family:var(--sans); font-size:13px; line-height:1.35;
+  overflow:hidden;
+  -webkit-font-smoothing:antialiased;
+}
+
+body::before{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0;
+  background:
+    radial-gradient(1200px 700px at 50% 42%, rgba(221,255,0,.055), transparent 70%),
+    linear-gradient(180deg, var(--navy), var(--void) 60%);
+}
+body::after{
+  content:""; position:fixed; inset:0; pointer-events:none; z-index:0; opacity:.5;
+  background-image:
+    linear-gradient(rgba(221,255,0,.032) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(221,255,0,.032) 1px, transparent 1px);
+  background-size:64px 64px;
+}
+
+#app{
+  position:relative; z-index:1;
+  display:grid; height:100vh;
+  grid-template-columns:var(--rail) 7px minmax(0,1fr) 7px var(--tel);
+  grid-template-rows:46px minmax(0,1fr) 7px var(--bottomH);
+  grid-template-areas:
+    "top    top  top    top  top"
+    "left   rsL  center rsR  right"
+    "rsB    rsB  rsB    rsB  rsB"
+    "bottom bottom bottom bottom bottom";
+  gap:var(--gap);
+  padding:var(--gap);
+}
+
+/* ── column resize handles ─────────────────────────────────────────────── */
+.col-resize{
+  grid-row:2; position:relative; cursor:col-resize; touch-action:none;
+}
+#resizeLeft{grid-area:rsL}
+#resizeRight{grid-area:rsR}
+.col-resize::after{
+  content:""; position:absolute; top:0; bottom:0; left:50%; width:1px;
+  background:var(--line); transform:translateX(-50%);
+}
+.col-resize:hover::after,
+.col-resize:focus-visible::after,
+.col-resize.dragging::after{background:var(--accent)}
+.col-resize:focus-visible{outline:none}
+
+/* ── row resize handle — the chat history's height ───────────────────────── */
+.row-resize{
+  grid-area:rsB; position:relative; cursor:row-resize; touch-action:none;
+}
+.row-resize::after{
+  content:""; position:absolute; left:0; right:0; top:50%; height:1px;
+  background:var(--line); transform:translateY(-50%);
+}
+.row-resize:hover::after,
+.row-resize:focus-visible::after,
+.row-resize.dragging::after{background:var(--accent)}
+.row-resize:focus-visible{outline:none}
+
+/* ── shared instrument furniture ───────────────────────────────────────── */
+.label{
+  font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink-2); font-weight:600;
+}
+.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+.rule{height:1px;background:var(--line);margin:8px 0}
+
+.chip{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.12em;
+  background:transparent; color:var(--ink-2);
+  border:1px solid var(--line); padding:3px 7px; cursor:pointer;
+  text-transform:uppercase;
+}
+.chip:hover{border-color:var(--line-hot); color:var(--ice)}
+.chip.on{border-color:var(--accent); color:var(--accent); background:rgba(221,255,0,.08)}
+
+/* ── A. top strip ──────────────────────────────────────────────────────── */
+.top{
+  grid-area:top;
+  display:flex; align-items:center; gap:16px;
+  padding:0 14px;
+  background:linear-gradient(180deg, var(--surface), var(--panel));
+  border:1px solid var(--line);
+  position:relative;
+}
+.top::after{
+  content:""; position:absolute; left:0; right:0; bottom:-1px; height:1px;
+  background:linear-gradient(90deg, transparent, rgba(221,255,0,.55), transparent);
+}
+.brand{display:flex; align-items:center; gap:9px; flex:none}
+.brand .mark{height:26px; width:auto; display:block; opacity:.5}
+.brand .wordmark{
+  font-size:12px; font-weight:700; letter-spacing:.28em; color:var(--ice);
+}
+
+.link-state{
+  display:flex; align-items:center; gap:7px; flex:none;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.18em;
+  color:var(--ink-2);
+}
+.link-state .led{width:7px; height:7px; border-radius:50%; background:var(--dim)}
+.link-state[data-state="live"] .led{background:var(--ok); box-shadow:0 0 9px var(--ok)}
+.link-state[data-state="live"]{color:var(--ok)}
+.link-state[data-state="connecting"] .led{background:var(--warn); box-shadow:0 0 9px var(--warn)}
+.link-state[data-state="connecting"]{color:var(--warn)}
+.link-state[data-state="down"] .led{background:var(--err); box-shadow:0 0 9px var(--err)}
+.link-state[data-state="down"]{color:var(--err)}
+.link-state[data-state="stale"] .led{background:var(--warn)}
+.link-state[data-state="stale"]{color:var(--warn)}
+
+.strip{display:flex; align-items:center; gap:18px; flex:1; min-width:0; overflow:hidden}
+.stat{display:flex; flex-direction:column; gap:1px; flex:none}
+.stat .k{font-size:8.5px; letter-spacing:.2em; color:var(--dim); text-transform:uppercase}
+.stat .v{
+  font-family:var(--mono); font-size:13px; color:var(--ice);
+  font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.stat .v.dimv{color:var(--dim)}
+
+.clock{flex:none; color:var(--ink-2); font-size:12px}
+
+/* ── B. left rail ──────────────────────────────────────────────────────── */
+.left{
+  grid-area:left;
+  display:flex; flex-direction:column; min-height:0;
+  background:linear-gradient(180deg, var(--panel), var(--navy));
+  border:1px solid var(--line);
+}
+.col-head{
+  display:flex; flex-direction:column; gap:7px;
+  padding:9px 10px 8px; border-bottom:1px solid var(--line); flex:none;
+}
+.filters{display:flex; gap:5px; flex-wrap:wrap}
+
+.stream{
+  flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;
+  padding:6px 0;
+  scrollbar-width:thin; scrollbar-color:var(--line-hot) transparent;
+}
+.stream::-webkit-scrollbar{width:7px}
+.stream::-webkit-scrollbar-thumb{background:var(--line-hot)}
+
+/* ── C. center ─────────────────────────────────────────────────────────── */
+.center{
+  grid-area:center; min-width:0; min-height:0;
+  display:flex; flex-direction:column;
+  background:linear-gradient(180deg, var(--panel), var(--navy));
+  border:1px solid var(--line);
+  position:relative;
+}
+.core-head{
+  display:flex; align-items:center; justify-content:space-between;
+  padding:8px 11px; border-bottom:1px solid var(--line); flex:none;
+}
+.core-tools{display:flex; gap:5px}
+.stage{position:relative; flex:1; min-height:0; overflow:hidden; cursor:grab}
+.stage.grabbing{cursor:grabbing}
+#ambient{position:absolute; inset:0; width:100%; height:100%; display:block}
+.stage-mark{
+  position:absolute; top:50%; left:50%; transform:translate(-50%,-50%);
+  width:38%; max-width:360px; opacity:.08; pointer-events:none; user-select:none;
+}
+#topology{position:absolute; inset:0; width:100%; height:100%; display:block; touch-action:none}
+
+/* ── D. right telemetry ────────────────────────────────────────────────── */
+.right{
+  grid-area:right; min-height:0;
+  overflow-y:auto; overflow-x:hidden;
+  display:flex; flex-direction:column; gap:var(--gap);
+  padding-right:2px;
+  scrollbar-width:thin; scrollbar-color:var(--line-hot) transparent;
+}
+.right::-webkit-scrollbar{width:7px}
+.right::-webkit-scrollbar-thumb{background:var(--line-hot)}
+
+/* ── E. bottom ─────────────────────────────────────────────────────────── */
+.bottom{
+  grid-area:bottom;
+  display:flex; flex-direction:column; min-height:0;
+  background:linear-gradient(180deg, var(--panel), var(--navy));
+  border:1px solid var(--line);
+}
+.timeline{
+  flex:none; height:52px; position:relative;
+  border-bottom:1px solid var(--line); overflow:hidden;
+}
+.composer{display:flex; align-items:center; gap:8px; padding:9px 11px; flex:none}
+.pick{
+  font-family:var(--mono); font-size:10.5px; max-width:280px;
+  background:var(--void); color:var(--ink);
+  border:1px solid var(--line); padding:6px 8px; outline:none;
+}
+.pick:focus{border-color:var(--line-hot)}
+.cmd{
+  flex:1; min-width:0;
+  background:var(--void); color:var(--ice);
+  border:1px solid var(--line); padding:7px 10px;
+  font-family:var(--mono); font-size:12px; outline:none;
+}
+.cmd::placeholder{color:var(--dim)}
+.cmd:focus{border-color:var(--accent); box-shadow:0 0 0 1px rgba(221,255,0,.18) inset}
+.send{
+  font-family:var(--mono); font-size:10px; letter-spacing:.16em;
+  background:rgba(221,255,0,.1); color:var(--accent);
+  border:1px solid var(--accent); padding:7px 16px; cursor:pointer;
+}
+.send:hover{background:rgba(221,255,0,.2)}
+.send:disabled{border-color:var(--line); color:var(--dim); background:transparent; cursor:default}
+.send-state{font-size:10px; color:var(--ink-2); min-width:120px}
+
+/* ── reduced motion ────────────────────────────────────────────────────── */
+/* Scoped deliberately. A blanket `*{animation-duration:.001ms}` used to live
+   here, and Windows reports reduce whenever "Animation effects" is off — which
+   on this machine it is — so the universal rule froze every orb on the map and
+   the panel lost the one motion it exists to show. Only the ambient atmosphere
+   is genuinely decoration; the orbs and the live ring carry meaning and keep
+   moving. */
+@media (prefers-reduced-motion: reduce){
+  #ambient{display:none}
+}

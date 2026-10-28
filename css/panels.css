@@ -1,0 +1,590 @@
+/* OpenCrabs intelligence interface — components.
+   Activity stream, topology, telemetry cards, timeline, inspector.
+   Every visual state here is driven by a data attribute the JS sets from real
+   runtime values; nothing is decorative-only. */
+
+/* ── provider board ─────────────────────────────────────────────────────── */
+/* The track is the provider's real token volume measured against the busiest
+   provider, so it grows as usage grows and stays empty when nothing has been
+   recorded — an empty bar is the truth, a full one is a guess. The strip
+   beneath it is that same volume split across the models that produced it, one
+   hue each, so two models in a row never read as one block. */
+.prov{margin:0 0 10px}
+.prov:last-child{margin-bottom:0}
+.prov-head{display:flex; align-items:baseline; justify-content:space-between; gap:8px}
+.prov-name{
+  font-family:var(--mono); font-size:11px; color:var(--ink);
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.prov-val{
+  font-family:var(--mono); font-size:10px; color:var(--ink-2); white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.prov-val.err{color:var(--err)}
+.prov-val.dimv{color:var(--dim)}
+
+/* Shown only when the provider's most recent event was a failure (not merely
+   "has failed before"). Text comes from the runtime's own last_error. */
+.prov-badge{
+  font-family:var(--mono); font-size:9px; letter-spacing:.06em;
+  color:var(--err); border:1px solid var(--err); border-radius:2px;
+  padding:1px 4px; white-space:nowrap;
+}
+
+.rate-bar{
+  height:5px; background:var(--void); border:1px solid var(--line);
+  margin:4px 0 2px; overflow:hidden;
+}
+.rate-bar > i{
+  display:block; height:100%; width:0; background:var(--accent);
+  transition:width .55s cubic-bezier(.4,0,.2,1);
+}
+/* Down right now: the bar reads full and red. This is never a guess at
+   proximity to a limit — the runtime reports no quota or reset clock — it is
+   a flat "blocked" signal backed by last_failure outranking last_success. */
+.rate-bar.down{border-color:var(--err)}
+.rate-bar.down > i{background:var(--err)}
+.model-sub-bar{
+  display:flex; gap:1px; height:3px; margin:0 0 1px; min-width:2px;
+  transition:width .55s cubic-bezier(.4,0,.2,1);
+}
+.model-bar{flex:1 1 0; height:100%; min-width:2px; display:block}
+
+.ev{
+  display:grid;
+  grid-template-columns:52px 1fr;
+  gap:8px;
+  padding:5px 10px 5px 8px;
+  border-left:2px solid transparent;
+  cursor:default;
+}
+.ev:hover{background:rgba(221,255,0,.04)}
+.ev .t{
+  font-family:var(--mono); font-size:9.5px; color:var(--dim);
+  padding-top:1px; white-space:nowrap;
+}
+.ev .body{min-width:0}
+.ev .k{
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.1em;
+  text-transform:uppercase; color:var(--ink-2);
+}
+.ev .d{
+  color:var(--ink); font-size:11.5px;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.ev[data-sev="ok"]{border-left-color:var(--ok)}
+.ev[data-sev="ok"] .k{color:var(--ok)}
+.ev[data-sev="warn"]{border-left-color:var(--warn)}
+.ev[data-sev="warn"] .k{color:var(--warn)}
+.ev[data-sev="err"]{border-left-color:var(--err)}
+.ev[data-sev="err"] .k{color:var(--err)}
+.ev[data-sev="info"]{border-left-color:var(--line-hot)}
+.ev[data-sev="info"] .k{color:var(--blue)}
+
+/* freshly arrived rows glow briefly then settle */
+@keyframes evIn{
+  from{background:rgba(221,255,0,.13); transform:translateX(-4px); opacity:0}
+  to{background:transparent; transform:none; opacity:1}
+}
+.ev.fresh{animation:evIn .45s ease-out}
+
+.stream .none{
+  padding:22px 14px; color:var(--dim); font-size:11.5px; text-align:center;
+  font-family:var(--mono); line-height:1.6;
+}
+
+/* ── topology ──────────────────────────────────────────────────────────── */
+/* The base edge has to survive a black ground at 1px: #515151 on #000 is a
+   line you find only if you already know where it is. It is drawn in the
+   blue-grey ink instead, faint but present, and it never animates — it is the
+   geometry, not the traffic. */
+#topology .link{
+  stroke:rgba(157,169,181,.34); stroke-width:1; fill:none;
+  vector-effect:non-scaling-stroke;
+}
+#topology .link.hot{stroke:rgba(221,255,0,.42)}
+
+/* Traffic marks. The same segment again, dashed, with the dash offset walking
+   forwards: the marks travel from the tail to the head, so the direction of
+   communication is legible without a legend. One clock per edge, hashed, so
+   twenty edges do not march in lockstep. */
+#topology .flow{
+  stroke:rgba(157,169,181,.75); stroke-width:2.2; fill:none;
+  stroke-dasharray:1.6 20; stroke-linecap:round;
+  vector-effect:non-scaling-stroke;
+  animation-name:flowRun;
+  animation-duration:var(--fdur,1.6s);
+  animation-timing-function:linear;
+  animation-iteration-count:infinite;
+  animation-delay:var(--fdelay,0s);
+  will-change:stroke-dashoffset;
+}
+#topology .flow.hot{
+  stroke:rgba(221,255,0,.9);
+  filter:drop-shadow(0 0 3px rgba(221,255,0,.55));
+}
+@keyframes flowRun{
+  from{stroke-dashoffset:0}
+  to{stroke-dashoffset:-21.6}
+}
+
+#topology .pulse{
+  fill:var(--accent); opacity:0;
+}
+#topology .pulse.go{animation:pulseGo 1.15s linear}
+@keyframes pulseGo{
+  0%{opacity:0}
+  12%{opacity:.95}
+  100%{opacity:0}
+}
+
+#topology .node{cursor:pointer}
+
+/* The orb floats and it breathes. Two nested groups carry it, because one
+   element executes one transform animation: .orb drifts the whole body and
+   .orbIn scales it. Amplitude, period and phase are set per node by the
+   renderer from a hash of the entity id, which keeps the motion varied but
+   reproducible: no two nodes breathe in step, and a refresh never reshuffles
+   the pattern. Longhand, not the `animation` shorthand: a shorthand carrying
+   var() is dropped whole when any part fails to substitute, and the node then
+   sits still with no error anywhere to say why. */
+#topology .orb{
+  animation-name:orbFloat;
+  animation-duration:var(--dur,8s);
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+  animation-delay:var(--delay,0s);
+  will-change:transform;
+}
+#topology .orbIn{
+  animation-name:orbPulse;
+  animation-duration:var(--pdur,3.9s);
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+  animation-delay:var(--pdelay,0s);
+  transform-box:fill-box; transform-origin:center;
+  will-change:transform;
+}
+/* A closed loop, not a line: x and y are a quarter-cycle apart, so the drift
+   reads as a body hanging in space rather than a bubble rising on a string. */
+@keyframes orbFloat{
+  0%  {transform:translate(0px, calc(var(--ampy,2.5px) * -1))}
+  25% {transform:translate(calc(var(--ampx,3px) * .85), 0px)}
+  50% {transform:translate(0px, var(--ampy,2.5px))}
+  75% {transform:translate(calc(var(--ampx,3px) * -.85), 0px)}
+  100%{transform:translate(0px, calc(var(--ampy,2.5px) * -1))}
+}
+/* The pulse. Deliberately shallow: a node that swells by a fifth reads as a
+   broken gauge, one that swells by a twentieth reads as alive. */
+@keyframes orbPulse{
+  0%,100%{transform:scale(var(--smin,.94))}
+  50%{transform:scale(var(--smax,1.06))}
+}
+
+/* The live ring: invisible until the entity it belongs to is the one working.
+   It is the only element on the map that says "now" rather than "recently", so
+   it is allowed to be the loudest thing on screen — briefly. */
+#topology .node .ring{
+  fill:none; stroke:var(--accent); stroke-width:1.4; opacity:0;
+  transform-box:fill-box; transform-origin:center;
+}
+#topology .node[data-live="1"] .ring{
+  opacity:.9;
+  animation:liveRing 1.8s ease-out infinite;
+}
+#topology .node[data-live="1"] .core{
+  stroke:var(--accent);
+  filter:drop-shadow(0 0 5px rgba(221,255,0,.85));
+}
+#topology .node[data-live="1"] .halo{
+  stroke:var(--accent); opacity:.95;
+  filter:drop-shadow(0 0 9px rgba(221,255,0,.55));
+}
+#topology .node[data-live="1"] .cap{fill:var(--accent)}
+#topology .link.live{
+  stroke:rgba(221,255,0,.62); stroke-width:1.6;
+}
+@keyframes liveRing{
+  0%{opacity:.85; transform:scale(.82)}
+  70%{opacity:.18; transform:scale(1.14)}
+  100%{opacity:0; transform:scale(1.2)}
+}
+
+/* Every orb is lit, not just the working one. A map whose only light is the
+   node currently running reads as switched off the moment nothing runs, which
+   is most of the time; the glow is the ambient state, and the live node simply
+   turns the volume up. The halo also breathes its opacity on its own clock, so
+   the surface is visibly alive even between polls. Longhand again: a shorthand
+   carrying var() is dropped whole if any part fails to substitute. */
+#topology .node .halo{
+  fill:none; stroke-width:1; opacity:.55;
+  filter:drop-shadow(0 0 6px var(--glow, rgba(245,245,245,.22)));
+  animation-name:haloBreathe;
+  animation-duration:var(--bdur,5.2s);
+  animation-timing-function:ease-in-out;
+  animation-iteration-count:infinite;
+  animation-delay:var(--bdelay,0s);
+  will-change:opacity;
+}
+#topology .node .core{
+  stroke-width:1.2;
+  filter:drop-shadow(0 0 3px var(--glow, rgba(245,245,245,.35)));
+}
+@keyframes haloBreathe{0%,100%{opacity:.38} 50%{opacity:.95}}
+#topology .node .cap{
+  font-family:var(--mono); font-size:9px; letter-spacing:.06em;
+  fill:var(--ink-2); pointer-events:none;
+}
+#topology .node.sel .cap{fill:var(--ice)}
+
+/* node classes: type x state. Type sets the hue, state sets the weight. */
+#topology .node[data-type="session"] .core{fill:rgba(221,255,0,.14); stroke:var(--accent)}
+#topology .node[data-type="session"] .halo{stroke:var(--accent)}
+#topology .node[data-type="tool"] .core{fill:rgba(106,168,255,.13); stroke:var(--blue)}
+#topology .node[data-type="tool"] .halo{stroke:var(--blue)}
+#topology .node[data-type="provider"] .core{fill:rgba(61,220,132,.1); stroke:var(--mint)}
+#topology .node[data-type="provider"] .halo{stroke:var(--mint)}
+#topology .node[data-type="cron"] .core{fill:rgba(255,176,32,.1); stroke:var(--warn)}
+#topology .node[data-type="cron"] .halo{stroke:var(--warn)}
+
+/* The glow hue is the node's own hue, so the light never contradicts the
+   stroke: an acid session, a blue tool, a green provider, an amber cron. */
+#topology .node[data-type="session"]{--glow:rgba(221,255,0,.5)}
+#topology .node[data-type="tool"]{--glow:rgba(106,168,255,.45)}
+#topology .node[data-type="provider"]{--glow:rgba(61,220,132,.4)}
+#topology .node[data-type="cron"]{--glow:rgba(255,176,32,.4)}
+
+#topology .node[data-state="idle"]{opacity:.62}
+#topology .node[data-state="active"] .halo{opacity:.9}
+#topology .node[data-state="failed"] .core{stroke:var(--err); fill:rgba(255,93,93,.14)}
+#topology .node[data-state="failed"] .halo{stroke:var(--err)}
+#topology .node[data-state="failed"] .cap{fill:var(--err)}
+#topology .node[data-state="waiting"] .core{stroke:var(--warn)}
+
+/* slow rotation for active halos — ambient, not attention-seeking. The glow
+   breathe rides alongside it: two animations on one element need a list, and
+   they touch different properties (transform, opacity) so they compose. */
+@keyframes spin{to{transform:rotate(360deg)}}
+#topology .node[data-state="active"] .halo{
+  transform-box:fill-box; transform-origin:center;
+  stroke-dasharray:3 5;
+  animation-name:spin, haloBreathe;
+  animation-duration:14s, var(--bdur,5.2s);
+  animation-timing-function:linear, ease-in-out;
+  animation-iteration-count:infinite, infinite;
+  animation-delay:0s, var(--bdelay,0s);
+}
+@media (prefers-reduced-motion: reduce){
+  /* Only the rotation stops. The orbs, the glow breathe and the live ring are
+     the panel's subject, not its decoration: freezing them under a reduce
+     preference that Windows sets by default left a map of dead dots. */
+  #topology .node[data-state="active"] .halo{
+    stroke-dasharray:none;
+    animation-name:haloBreathe;
+    animation-duration:var(--bdur,5.2s);
+    animation-timing-function:ease-in-out;
+    animation-iteration-count:infinite;
+    animation-delay:var(--bdelay,0s);
+  }
+}
+
+/* The empty notice sits on the baseline, not over the middle of the map: a
+   message parked in the centre covers the thing it is describing, and the
+   topology is read from the middle outwards. */
+.stage .empty{
+  position:absolute; left:0; right:0; bottom:9px;
+  display:flex; align-items:baseline; justify-content:center; gap:8px;
+  flex-direction:row; text-align:center;
+  font-family:var(--mono); font-size:11px; color:var(--dim);
+  pointer-events:none;
+}
+.stage .empty .big{font-size:10px; letter-spacing:.2em; color:var(--ink-2)}
+
+/* ── the mark, worn as a watermark ──────────────────────────────────────── */
+/* The logo sits behind the map rather than over it: the topology is the
+   subject and the mark is the masthead, so it must not compete with a node
+   for attention or swallow a drag. `screen` can only add light, so a node
+   crossing it is never dimmed; `grayscale` collapses the mark's two fills
+   into one neutral, which is what a watermark on black wants. Sized in
+   height, not width: the artwork is taller than it is broad. */
+#stageMark{
+  position:absolute; left:50%; top:50%;
+  /* The lift and the scale compose into the SAME transform as the centring.
+     A second `transform` declaration would silently drop the centring and
+     leave the mark half a width off, with no error anywhere. */
+  transform:translate(-50%,-50%) translateY(var(--mark-lift,0px)) scale(var(--mark-scale,1));
+  height:78%; width:auto; max-width:76%;
+  opacity:var(--mark-opacity,.06);
+  /* Same trap on `filter`: it is ONE property, so the glow is appended to the
+     watermark's own chain. Redeclaring it would drop grayscale(1) and the mark
+     would turn coloured. */
+  filter:grayscale(1) brightness(1.5) drop-shadow(0 0 var(--mark-glow,0px) rgba(221,255,0,.55));
+  mix-blend-mode:screen;
+  pointer-events:none;
+  user-select:none;
+  -webkit-user-select:none;
+  -webkit-user-drag:none;
+  transition:opacity 320ms ease, filter 320ms ease;
+  will-change:transform, filter, opacity;
+}
+
+/* Speaking: the mark lifts a little and the light comes up with the clip.
+   Every value is a function of --mark-level, which mark.js writes as the
+   audio's progress — so the glow rises and falls with the words rather than
+   pulsing on a timer of its own. */
+#stageMark[data-speaking="1"]{
+  --mark-level:0;                              /* JS overrides inline */
+  --mark-scale:calc(1 + .012 * var(--mark-level));
+  --mark-lift:calc(-8px * var(--mark-level));
+  --mark-glow:calc(10px + 26px * var(--mark-level));
+  --mark-opacity:calc(.10 + .16 * var(--mark-level));
+  transition:opacity 180ms ease, filter 180ms ease;
+}
+
+/* Reduced motion: it still answers, but nothing travels. */
+@media (prefers-reduced-motion: reduce){
+  #stageMark[data-speaking="1"]{--mark-scale:1; --mark-lift:0px}
+}
+
+/* stale marker: the whole core dims rather than pretending to be current */
+.center[data-stale="1"] .stage{opacity:.45; filter:saturate(.4)}
+.center[data-stale="1"]::after{
+  content:"STALE — NO UPDATE FROM RUNTIME";
+  position:absolute; right:11px; bottom:9px;
+  font-family:var(--mono); font-size:9.5px; letter-spacing:.16em; color:var(--warn);
+}
+
+/* ── inspector ─────────────────────────────────────────────────────────── */
+.inspector{
+  position:absolute; right:10px; top:44px; width:280px; max-height:calc(100% - 60px);
+  overflow-y:auto;
+  /* Every pop-up sits on the same neutral grey: a floating box must not
+     invent a hue of its own. */
+  background:rgba(16,16,16,.97);
+  border:1px solid var(--line-hot);
+  box-shadow:0 12px 34px rgba(0,0,0,.55);
+  padding:10px 11px;
+  z-index:5;
+}
+.inspector .ih{
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  margin-bottom:7px;
+}
+.inspector .ix{
+  background:none; border:none; color:var(--ink-2); cursor:pointer;
+  font-size:15px; line-height:1; padding:0 2px;
+}
+.inspector .ix:hover{color:var(--ice)}
+.inspector .iname{font-size:12.5px; color:var(--ice); word-break:break-word}
+.inspector dl{
+  margin:7px 0 0; display:grid; grid-template-columns:auto 1fr; gap:3px 9px;
+  font-family:var(--mono); font-size:10.5px;
+}
+.inspector dt{color:var(--dim); letter-spacing:.06em; white-space:nowrap}
+.inspector dd{margin:0; color:var(--ink); word-break:break-word}
+
+/* ── the spoken reply ─────────────────────────────────────────────────── */
+/* A reply that has been spoken is shown as the recording it is: a play button,
+   a progress line, its length. The words stay one tap away under TRANSCRIPT,
+   because a recording that hides the only full copy of a long answer is worse
+   than the transcript it replaced. */
+.inspector .vreply{
+  display:flex; align-items:center; gap:8px; margin:0 0 8px;
+  padding:6px 8px; border:1px solid var(--line-hot); background:var(--void);
+  font-family:var(--mono); font-size:10.5px; color:var(--ink);
+}
+.inspector .vreply[hidden]{display:none}
+.inspector .vplay{
+  flex:none; width:24px; height:24px; padding:0;
+  display:grid; place-items:center;
+  background:none; border:1px solid var(--accent); color:var(--accent);
+  font-family:var(--mono); font-size:10px; line-height:1; cursor:pointer;
+}
+.inspector .vplay:hover{background:var(--accent); color:var(--void)}
+.inspector .vlbl{flex:none; color:var(--accent); letter-spacing:.16em; font-size:9px}
+.inspector .vtrack{
+  flex:1 1 auto; height:3px; background:var(--line); position:relative; cursor:pointer;
+}
+.inspector .vbar{
+  position:absolute; left:0; top:0; bottom:0; width:0%; background:var(--accent);
+}
+.inspector .vtime{
+  flex:none; color:var(--ink-2); font-variant-numeric:tabular-nums; white-space:nowrap;
+}
+.inspector .rtext.closed{display:none}
+.inspector .vtext{
+  background:none; border:none; color:var(--ink-2); cursor:pointer; display:block;
+  font-family:var(--mono); font-size:9px; letter-spacing:.16em;
+  padding:0; margin:2px 0 0;
+}
+.inspector .vtext:hover{color:var(--ice)}
+.inspector .vtext[hidden]{display:none}
+
+/* ── bottom: scrollable chat history ─────────────────────────────────────── */
+/* Every turn the selected conversation holds, oldest first. A voice note
+   replays the actual recording on disk; a spoken reply has no saved audio, so
+   its button asks /speak for it again on click — one extra round trip, never
+   paid unless the user actually wants to hear it again. */
+.chatlog{
+  flex:1; min-height:0; overflow-y:auto; overflow-x:hidden;
+  padding:8px 11px; display:flex; flex-direction:column; gap:7px;
+  scrollbar-width:thin; scrollbar-color:var(--line-hot) transparent;
+}
+.chatlog::-webkit-scrollbar{width:7px}
+.chatlog::-webkit-scrollbar-thumb{background:var(--line-hot)}
+.chatlog .empty{color:var(--dim); font-size:11px; padding:8px 2px}
+
+.chat-row{
+  border:1px solid var(--line); background:var(--void);
+  padding:7px 9px; display:flex; flex-direction:column; gap:5px; flex:none;
+}
+.chat-row[data-role="assistant"]{border-color:var(--line-hot)}
+.chat-meta{display:flex; align-items:center; gap:8px}
+.chat-role{
+  font-family:var(--mono); font-size:9px; letter-spacing:.16em;
+  color:var(--ink-2); text-transform:uppercase;
+}
+.chat-row[data-role="assistant"] .chat-role{color:var(--accent)}
+.chat-time{margin-left:auto; color:var(--dim); font-size:9px}
+.chat-text{
+  font-size:11.5px; color:var(--ink); white-space:pre-wrap; word-break:break-word;
+}
+.chat-play{align-self:flex-start}
+.chat-play.on{background:rgba(221,255,0,.2)}
+
+/* ── telemetry cards ───────────────────────────────────────────────────── */
+.card{
+  background:linear-gradient(180deg, var(--panel), var(--navy));
+  border:1px solid var(--line);
+  padding:9px 11px 10px;
+  flex:none;
+}
+.card h3{
+  margin:0 0 7px; font-size:9.5px; letter-spacing:.22em; text-transform:uppercase;
+  color:var(--ink-2); font-weight:600;
+}
+.kv{display:flex; align-items:baseline; justify-content:space-between; gap:10px; padding:2px 0}
+.kv .k{color:var(--ink-2); font-size:11px; white-space:nowrap}
+.kv .v{
+  font-family:var(--mono); font-size:11.5px; color:var(--ice);
+  font-variant-numeric:tabular-nums; text-align:right;
+  overflow:hidden; text-overflow:ellipsis; white-space:nowrap;
+}
+.kv .v.ok{color:var(--ok)}
+.kv .v.warn{color:var(--warn)}
+.kv .v.err{color:var(--err)}
+.kv .v.dimv{color:var(--dim)}
+
+.bar{
+  height:4px; background:var(--void); border:1px solid var(--line);
+  margin:5px 0 3px; overflow:hidden;
+}
+.bar > i{display:block; height:100%; background:var(--accent); width:0}
+.bar[data-tone="ok"] > i{background:var(--ok)}
+.bar[data-tone="warn"] > i{background:var(--warn)}
+.bar[data-tone="err"] > i{background:var(--err)}
+
+.spark{display:block; width:100%; height:34px; margin-top:4px}
+.spark polyline{fill:none; stroke:var(--accent); stroke-width:1.2}
+.spark .area{fill:rgba(221,255,0,.1); stroke:none}
+
+.alerts{display:flex; flex-direction:column; gap:5px}
+.alert{
+  display:flex; gap:7px; align-items:flex-start;
+  border-left:2px solid var(--warn); padding:4px 0 4px 8px;
+  font-size:11px; color:var(--ink);
+}
+.alert[data-sev="err"]{border-left-color:var(--err)}
+.alert[data-sev="ok"]{border-left-color:var(--ok)}
+.alert .who{font-family:var(--mono); font-size:10px; color:var(--ink-2); white-space:nowrap}
+.card .none{color:var(--dim); font-size:11px; font-family:var(--mono); padding:2px 0}
+
+/* ── timeline ──────────────────────────────────────────────────────────── */
+.timeline .axis{
+  position:absolute; left:0; right:0; top:50%; height:1px;
+  background:var(--line); transform:translateY(-50%);
+}
+.timeline .tick{
+  position:absolute; top:50%; width:2px; height:9px; margin-top:-4px;
+  background:var(--line-hot); cursor:pointer;
+  transition:height .15s ease, margin-top .15s ease;
+}
+.timeline .tick:hover{height:17px; margin-top:-8px; background:var(--ice)}
+.timeline .tick[data-sev="ok"]{background:var(--ok)}
+.timeline .tick[data-sev="warn"]{background:var(--warn)}
+.timeline .tick[data-sev="err"]{background:var(--err)}
+.timeline .tick.sel{height:21px; margin-top:-10px; background:var(--accent);
+  box-shadow:0 0 10px rgba(221,255,0,.75)}
+.timeline .lab{
+  position:absolute; font-family:var(--mono); font-size:9px; color:var(--dim);
+  bottom:4px; letter-spacing:.1em;
+}
+.timeline .none{
+  position:absolute; inset:0; display:flex; align-items:center; justify-content:center;
+  font-family:var(--mono); font-size:11px; color:var(--dim);
+}
+
+/* ── command feedback ──────────────────────────────────────────────────── */
+.send-state[data-tone="ok"]{color:var(--ok)}
+.send-state[data-tone="warn"]{color:var(--warn)}
+.send-state[data-tone="err"]{color:var(--err)}
+
+/* ── composer attachments ──────────────────────────────────────────────── */
+/* The composer is a chat composer, so it takes the two things a chat takes
+   besides text: a picture and a voice note. Both sit in the row itself, and
+   what is queued shows as a chip strip immediately above it — a picture chip
+   is the picture, a voice chip is the clip's length and its state, because a
+   recording that is still being saved must not look the same as one ready to
+   go. */
+.attach-strip{
+  display:flex; align-items:center; gap:7px; flex-wrap:wrap;
+  padding:8px 11px 0; flex:none;
+}
+.attach-strip:empty{display:none}
+.attach-strip .thumb{
+  position:relative; width:52px; height:38px;
+  border:1px solid var(--line-hot); background:var(--void); overflow:hidden;
+}
+.attach-strip .thumb img{width:100%; height:100%; object-fit:cover; display:block}
+.attach-strip .thumb .rm{
+  position:absolute; top:0; right:0; width:15px; height:15px; padding:0;
+  background:rgba(10,10,11,.88); color:var(--ink-2);
+  border:1px solid var(--line-hot); font-family:var(--mono); font-size:9px;
+  line-height:1; cursor:pointer;
+}
+.attach-strip .thumb .rm:hover{color:var(--err); border-color:var(--err)}
+.attach-strip .clipchip{
+  display:flex; align-items:center; gap:7px; height:38px; padding:0 9px;
+  border:1px solid var(--line-hot); background:var(--void);
+  font-family:var(--mono); font-size:10.5px; color:var(--ink); white-space:nowrap;
+}
+.attach-strip .clipchip .chipmic{color:var(--accent); font-size:13px}
+.attach-strip .clipchip .rm{
+  position:static; width:auto; height:auto; border:none; background:none;
+  color:var(--ink-2); font-family:var(--mono); font-size:11px; padding:0 0 0 4px;
+  cursor:pointer;
+}
+.attach-strip .clipchip .rm:hover{color:var(--err)}
+
+.composer .icon{
+  flex:none; width:34px; height:32px; padding:0;
+  display:grid; place-items:center;
+  background:var(--void); color:var(--ink-2);
+  border:1px solid var(--line); cursor:pointer;
+}
+.composer .icon svg{width:15px; height:15px; fill:none; stroke:currentColor; stroke-width:1.2}
+.composer .icon:hover{color:var(--accent); border-color:var(--accent)}
+/* Recording has to be visible from across the room, or you keep talking into
+   a button you already pressed. */
+.composer .icon.rec{color:var(--err); border-color:var(--err)}
+@keyframes micRec{
+  0%,100%{box-shadow:0 0 0 0 rgba(255,93,93,.55)}
+  70%{box-shadow:0 0 0 6px rgba(255,93,93,0)}
+}
+.composer .icon.rec{animation:micRec 1.15s ease-out infinite}
+@media (prefers-reduced-motion: reduce){
+  .composer .icon.rec{animation:none; box-shadow:0 0 0 2px rgba(255,93,93,.45) inset}
+}
+/* Spoken replies on by default; off reads as dim and unlit, same language as
+   the rest of the composer's resting icons. */
+.composer .icon.on{color:var(--accent); border-color:var(--accent)}
